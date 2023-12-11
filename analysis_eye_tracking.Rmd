@@ -1,0 +1,12 @@
+---
+title: "Perception and action project"
+author: "Lina Walkowiak and Amélie Kretschmer"
+date: "2023-12-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
