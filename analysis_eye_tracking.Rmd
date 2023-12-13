@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r install_packages}
 
-pacman::p_load(devtools, tidyverse, dplyr, ggplot2, jsonlite)
+pacman::p_load(devtools, tidyverse, dplyr, ggplot2, jsonlite, tidyr)
 library(pupilr)
 library(eyer)
 ```
@@ -21,6 +21,12 @@ infos <- read_csv("/Users/lina/Documents/3rd_semester/Perception_and_Action/raw_
 answers <- read_csv("/Users/lina/Documents/3rd_semester/Perception_and_Action/exam_project/answers.csv")
 # Assuming df1 and df2 are your two data frames, and "id" is the common identifier
 infos <- merge(infos, answers, by = "id", all.x = TRUE)
+
+# remove unneeded columns from infos df
+infos <- infos[, -c(2, 5,6,7,8,9,10,13,21)]
+
+# rename for merging 
+colnames(infos) <- gsub(" ", ".", colnames(infos))
 ```
 ```{r specify_paths}
 main_folder <- "/Users/lina/Documents/3rd_semester/Perception_and_Action/raw_data/"
@@ -48,15 +54,23 @@ fixations <- lapply(subfolders, function(subfolder) {
 # Remove NULL Values from the list 
 fixations <- Filter(Negate(is.null), fixations)
 
-# Read and Combine CSV Files into a Single Dataframe
+# Read and Combine CSV filess
 fixations <- bind_rows(lapply(fixations, read.csv))
+
+# remove unwanted columns 
+fixations <- fixations[, - c(1, 5, 7, 8, 9, 10)]
+
+fixations <- rename(fixations, start = start.timestamp..ns.,
+                    duration = duration..ms.)
+
+fixations$start <- fixations$start /1e9
 
 ```
 
 
 
 ```{r read_gaze}
-# create list of "fixations.csv" paths
+# create list of paths
 gaze <- lapply(subfolders, function(subfolder) {
   # file path within each subfolder
   gaze_path <- file.path(subfolder, "gaze.csv")
@@ -71,11 +85,13 @@ gaze <- lapply(subfolders, function(subfolder) {
   }
 })
 
-# Remove NULL Values from the list 
+# Remove NULL values from the list 
 gaze <- Filter(Negate(is.null), gaze)
 
-# Read and Combine CSV Files into a Single Dataframe
+# Read and combine CSV files 
 gaze <- bind_rows(lapply(gaze, read.csv))
+
+# if we use the data maybe rename xolumsn and so on
 
 ```
 
@@ -86,7 +102,7 @@ events <- lapply(subfolders, function(subfolder) {
   # file path within each subfolder
   events_path <- file.path(subfolder, "events.csv")
 
-  # Check if the file exists
+  # check if the file exists
   if (file.exists(events_path)) {
     # if the file exists, return the file path
     return(events_path)
@@ -96,13 +112,99 @@ events <- lapply(subfolders, function(subfolder) {
   }
 })
 
-# Remove NULL Values from the list 
+# remove NULL values from the list 
 events <- Filter(Negate(is.null), events)
 
-# Read and Combine CSV Files into a Single Dataframe
+# combine 
 events <- bind_rows(lapply(events, read.csv))
+
+events <- rename(events, task.time = timestamp..ns.)
+
+events$task.time <- events$task.time /1e9
 
 ```
 
+```{r task_time}
+events <- subset(events, type == "cloud")
 
+# create begin and end columns with time stamp
+events <- events %>%
+  group_by(recording.id, name) %>%
+  summarise(task_time = first(task.time), .groups = "drop") %>%
+  pivot_wider(
+    id_cols = recording.id,
+    names_from = name,
+    values_from = task_time
+  ) %>%
+  rename(
+    task.begin = "task.begin",
+    task.end = "task.end"
+  )
+```
+
+
+
+```{r bind_and_filter}
+
+# bind events and fixation data
+fixation_events <- left_join(events, fixations, by = "recording.id")
+
+# filter fixation events that are within the task duration 
+fixation_events <- fixation_events %>%
+  filter(start > task.begin, start < task.end)
+
+```
+
+```{r merge_data}
+info_fix <- left_join(fixation_events, infos, by="recording.id")
+```
+
+```{r plot_for_fun}
+
+my_palette <- c("#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3")
+
+info_fix %>%
+  ggplot(aes(x = condition, y = duration , fill = condition)) +
+  geom_boxplot() +
+  labs(title = "Fixation Duration in Each Condition",
+       x = "Condition",
+       y = "Fixation Duration")+ 
+      scale_fill_manual(values=my_palette)+
+      theme_bw()
+
+# Fixation number in one recording for the four different conditions
+info_fix %>%
+  ggplot(aes(x = recording.id, fill = condition)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Fixation Number in Each Recording for Different Conditions",
+       x = "Recording ID",
+       y = "Fixation Number")+ 
+  scale_fill_manual(values=my_palette)+
+      theme_bw()
+
+info_fix %>%
+  ggplot(aes(x = condition, fill = condition)) +
+  geom_bar(position = "dodge") +
+  scale_fill_manual(values = my_palette) +
+  labs(title = "Fixation Number in Each Recording for Different Conditions",
+       x = "Recording ID",
+       y = "Fixation Number")+ 
+  theme_bw()
+
+
+# task.begin minus task.end average for each condition
+info_fix %>%
+  group_by(condition) %>%
+  summarise(mean_diff = mean(task.end - task.begin)) %>%
+  ggplot(aes(x = condition, y = mean_diff, fill = condition)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = my_palette) +
+  labs(title = "Average Task Duration Difference in Each Condition",
+       x = "Condition",
+       y = "Average Task Duration Difference") +
+  theme_bw()
+
+
+
+```
 
