@@ -172,7 +172,19 @@ info_fix %>%
       scale_fill_manual(values=my_palette)+
       theme_bw()
 
-# Fixation number in one recording for the four different conditions
+info_fix %>%
+  ggplot(aes(x = duration, fill = condition)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Fixation Duration Distribution",
+       x = "Fixation Duration",
+       y = "Density") +
+  scale_fill_manual(values = my_palette) +
+  theme_bw() +
+  facet_wrap(~condition, scale = "fixed")
+
+
+
+
 info_fix %>%
   ggplot(aes(x = recording.id, fill = condition)) +
   geom_bar(position = "dodge") +
