@@ -9,4 +9,100 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r install_packages}
+
+pacman::p_load(devtools, tidyverse, dplyr, ggplot2, jsonlite)
+library(pupilr)
+library(eyer)
+```
+
+```{r read_info_data}
+infos <- read_csv("/Users/lina/Documents/3rd_semester/Perception_and_Action/raw_data/sections.csv")
+answers <- read_csv("/Users/lina/Documents/3rd_semester/Perception_and_Action/exam_project/answers.csv")
+# Assuming df1 and df2 are your two data frames, and "id" is the common identifier
+infos <- merge(infos, answers, by = "id", all.x = TRUE)
+```
+```{r specify_paths}
+main_folder <- "/Users/lina/Documents/3rd_semester/Perception_and_Action/raw_data/"
+subfolders <- list.dirs("/Users/lina/Documents/3rd_semester/Perception_and_Action/raw_data/", full.names = T, recursive = T)
+```
+
+
+```{r read_fixations}
+
+# create list of "fixations.csv" paths
+fixations <- lapply(subfolders, function(subfolder) {
+  # file path within each subfolder
+  fixations_path <- file.path(subfolder, "fixations.csv")
+
+  # Check if the file exists
+  if (file.exists(fixations_path)) {
+    # if the file exists, return the file path
+    return(fixations_path)
+  } else {
+    # if the file does not exist, return NULL
+    return(NULL)
+  }
+})
+
+# Remove NULL Values from the list 
+fixations <- Filter(Negate(is.null), fixations)
+
+# Read and Combine CSV Files into a Single Dataframe
+fixations <- bind_rows(lapply(fixations, read.csv))
+
+```
+
+
+
+```{r read_gaze}
+# create list of "fixations.csv" paths
+gaze <- lapply(subfolders, function(subfolder) {
+  # file path within each subfolder
+  gaze_path <- file.path(subfolder, "gaze.csv")
+
+  # Check if the file exists
+  if (file.exists(gaze_path)) {
+    # if the file exists, return the file path
+    return(gaze_path)
+  } else {
+    # if the file does not exist, return NULL
+    return(NULL)
+  }
+})
+
+# Remove NULL Values from the list 
+gaze <- Filter(Negate(is.null), gaze)
+
+# Read and Combine CSV Files into a Single Dataframe
+gaze <- bind_rows(lapply(gaze, read.csv))
+
+```
+
+
+```{r read_events}
+# create list of "fixations.csv" paths
+events <- lapply(subfolders, function(subfolder) {
+  # file path within each subfolder
+  events_path <- file.path(subfolder, "events.csv")
+
+  # Check if the file exists
+  if (file.exists(events_path)) {
+    # if the file exists, return the file path
+    return(events_path)
+  } else {
+    # if the file does not exist, return NULL
+    return(NULL)
+  }
+})
+
+# Remove NULL Values from the list 
+events <- Filter(Negate(is.null), events)
+
+# Read and Combine CSV Files into a Single Dataframe
+events <- bind_rows(lapply(events, read.csv))
+
+```
+
+
 
