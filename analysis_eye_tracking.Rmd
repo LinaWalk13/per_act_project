@@ -156,13 +156,26 @@ fixation_events <- fixation_events %>%
 ```
 
 ```{r merge_data}
+
 info_fix <- left_join(fixation_events, infos, by="recording.id")
+
 ```
+
+```{r add_metrics}
+
+info_fix$task.duration <- info_fix$task.end - info_fix$task.begin
+info_fix <- info_fix %>%
+  group_by(recording.id) %>%
+  mutate(
+    fixation.freq = n_distinct(fixation.id) / task.duration)
+```
+
 
 ```{r plot_for_fun}
 
 my_palette <- c("#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3")
 
+# fixation duration boxplot
 info_fix %>%
   ggplot(aes(x = condition, y = duration , fill = condition)) +
   geom_boxplot() +
@@ -172,6 +185,16 @@ info_fix %>%
       scale_fill_manual(values=my_palette)+
       theme_bw()
 
+# overalll fixation duration 
+info_fix %>%
+  ggplot(aes(x = duration)) +
+  geom_density(alpha = 0.5, fill = "#66c2a5") +
+  labs(title = "Fixation Duration Distribution",
+       x = "Fixation Duration",
+       y = "Density") +
+  theme_bw() 
+
+#fixation duration density wrapped by condiotn 
 info_fix %>%
   ggplot(aes(x = duration, fill = condition)) +
   geom_density(alpha = 0.5) +
@@ -183,8 +206,7 @@ info_fix %>%
   facet_wrap(~condition, scale = "fixed")
 
 
-
-
+# number of fixations in one recording 
 info_fix %>%
   ggplot(aes(x = recording.id, fill = condition)) +
   geom_bar(position = "dodge") +
@@ -194,29 +216,51 @@ info_fix %>%
   scale_fill_manual(values=my_palette)+
       theme_bw()
 
-info_fix %>%
-  ggplot(aes(x = condition, fill = condition)) +
-  geom_bar(position = "dodge") +
-  scale_fill_manual(values = my_palette) +
-  labs(title = "Fixation Number in Each Recording for Different Conditions",
-       x = "Recording ID",
-       y = "Fixation Number")+ 
-  theme_bw()
 
 
-# task.begin minus task.end average for each condition
+# boxplot task duration 
 info_fix %>%
-  group_by(condition) %>%
-  summarise(mean_diff = mean(task.end - task.begin)) %>%
-  ggplot(aes(x = condition, y = mean_diff, fill = condition)) +
-  geom_bar(stat = "identity") +
-  scale_fill_manual(values = my_palette) +
-  labs(title = "Average Task Duration Difference in Each Condition",
+  ggplot(aes(x = condition, y = task.duration , fill = condition)) +
+  geom_boxplot() +
+  labs(title = "Task Duration in each condition",
        x = "Condition",
-       y = "Average Task Duration Difference") +
+       y = "Task duration")+ 
+      scale_fill_manual(values=my_palette)+
+      theme_bw()
+
+
+# overall fixation frequency
+info_fix %>%
+  ggplot(aes(x = fixation.freq)) +
+  geom_density(alpha = 0.8, fill = "#fc8d62") +
+  labs(title = "Fixation Frequency Distribution",
+       x = "Fixation Frequency",
+       y = "Density") +
   theme_bw()
 
 
+# fixation frequency 
+info_fix %>%
+  ggplot(aes(x = fixation.freq, fill = condition)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Fixation Frequency Distribution",
+       x = "Fixation Frequency",
+       y = "Density") +
+  scale_fill_manual(values = my_palette) +
+  theme_bw() +
+  facet_wrap(~condition, scale = "fixed")
+# showing the fixations per second 
+
+
+# boxplot fixation frequency 
+info_fix %>%
+  ggplot(aes(x = condition, y = fixation.freq , fill = condition)) +
+  geom_boxplot() +
+  labs(title = "Fixation Frequency in Each Condition",
+       x = "Condition",
+       y = "Fixation Frequency")+ 
+      scale_fill_manual(values=my_palette)+
+      theme_bw()
 
 ```
 
