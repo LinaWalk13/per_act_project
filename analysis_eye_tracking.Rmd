@@ -312,11 +312,11 @@ print(heatmap_plot)
 #```
 
 # trying out anova that accounts for repeated measures
-```{r}
+```{r anova}
 data <- info_fix(
   id = rep(1:16, each = 4),
   condition = rep(1:4, times = 16),
-  value = fixation.freq
+  value = fixation.freq # there is something wrong with this, but i don't know yet how to select the data
 )
 
 # Perform repeated measures ANOVA
