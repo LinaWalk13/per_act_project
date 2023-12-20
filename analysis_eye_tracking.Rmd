@@ -29,13 +29,21 @@ infos <- infos[, -c(2, 5,6,7,8,9,10,13,21)]
 # rename for merging 
 colnames(infos) <- gsub(" ", ".", colnames(infos))
 ```
+```{r compute_statistics}
+mean(answers$age)
+range(answers$age)
+
+```
+
+
 ```{r specify_paths}
 main_folder <- "~/Documents/Uni/Semester 03/pa_project/per_act_project"
 subfolders <- list.dirs("~/Documents/Uni/Semester 03/pa_project/per_act_project/raw-data-export", full.names = T, recursive = T)
 ```
 
 
-```{r read_fixations}
+
+```{r read_fixations, message = F}
 
 # create list of "fixations.csv" paths
 fixations <- lapply(subfolders, function(subfolder) {
@@ -59,18 +67,22 @@ fixations <- Filter(Negate(is.null), fixations)
 fixations <- bind_rows(lapply(fixations, read.csv))
 
 # remove unwanted columns 
-fixations <- fixations[, - c(1, 5, 7, 8, 9, 10)]
+fixations <- fixations[, - c(1, 7, 8, 9, 10)]
 
-fixations <- rename(fixations, start = start.timestamp..ns.,
+fixations <- rename(fixations, start = start.timestamp..ns., end = end.timestamp..ns.,
                     duration = duration..ms.)
 
-fixations$start <- fixations$start /1e9
+
+fixations$start <- fixations$start / 1e6
+fixations$end <- fixations$end / 1e6
+
+sum(is.na(fixations$duration))
 
 ```
 
 
 
-```{r read_gaze}
+```{r read_gaze, message=F}
 # create list of paths
 gaze <- lapply(subfolders, function(subfolder) {
   # file path within each subfolder
@@ -98,7 +110,7 @@ gaze <- bind_rows(lapply(gaze, read.csv))
 
 
 ```{r read_events}
-# create list of "fixations.csv" paths
+# create list of events paths
 events <- lapply(subfolders, function(subfolder) {
   # file path within each subfolder
   events_path <- file.path(subfolder, "events.csv")
@@ -121,7 +133,9 @@ events <- bind_rows(lapply(events, read.csv))
 
 events <- rename(events, task.time = timestamp..ns.)
 
-events$task.time <- events$task.time /1e9
+events$task.time <- events$task.time /1e6
+
+
 
 ```
 
@@ -144,21 +158,21 @@ events <- events %>%
 ```
 
 
-
 ```{r bind_and_filter}
 
 # bind events and fixation data
-fixation_events <- left_join(events, fixations, by = "recording.id")
+fixations <- left_join(events, fixations, by = "recording.id")
 
 # filter fixation events that are within the task duration 
-fixation_events <- fixation_events %>%
-  filter(start > task.begin, start < task.end)
+fixations <- fixations  %>%
+  filter(start > task.begin, end < task.end)
+
 
 ```
 
 ```{r merge_data}
 
-info_fix <- left_join(fixation_events, infos, by="recording.id")
+info_fix <- left_join(fixations, infos, by="recording.id")
 
 ```
 
@@ -263,6 +277,19 @@ info_fix %>%
       scale_fill_manual(values=my_palette)+
       theme_bw()
 
+# mean fixation duration in one session grouped by condition
+info_fix %>%
+  group_by(recording.id, condition) %>%
+  summarise(mean_duration = mean(duration)) %>%
+  ggplot(aes(x = mean_duration, fill = condition)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Mean Fixation Duration Distribution",
+       x = "Mean Fixation Duration",
+       y = "Density") +
+  scale_fill_manual(values = my_palette) +
+  theme_bw()+ 
+    facet_wrap(~condition, scale = "fixed")
+
 ```
 # some basic and not working heatmap?!
 
@@ -298,4 +325,61 @@ aov_result <- aov(value ~ condition + Error(id/condition), data = data)
 # Print ANOVA summary
 summary(aov_result)
 ```
+
+
+```{r classes_df}
+# count ambient and focal fixations in each recording 
+
+# Create the fix_classes data frame
+fix_classes <- info_fix %>%
+  group_by(recording.id) %>%
+  summarise(
+    ambient = sum(duration <= 300),
+    focal = sum(duration > 300),
+    fix_count = focal + ambient,
+    condition = first(condition),
+    episode = first(episode),
+    id = first(id)
+  )
+
+
+
+
+# Calculate the proportion of ambient and focal fixations to fix_count for each condition
+fix_classes <- fix_classes %>%
+  gather(fixation_type, count, ambient:focal) %>%
+  group_by(condition) %>%
+  mutate(proportion = count / fix_count)
+
+# Plotting
+ggplot(fix_classes, aes(x = condition, y = proportion, fill = fixation_type)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Proportion of Ambient and Focal Fixations to Total Fixation Count by Condition",
+       x = "Condition",
+       y = "Proportion",
+       fill = "Fixation Type") +
+  scale_fill_manual(values = c("ambient" = "lightseagreen", "focal" = "lightskyblue")) +
+  theme_minimal()
+```
+```{r time_between_fixations}
+
+fixations <- fixations %>%
+  group_by(recording.id) %>%
+  mutate(time_between_fixations = start - lag(end))
+info_fix <- info_fix %>%
+  group_by(recording.id) %>%
+  mutate(time_between_fixations = start - lag(end))
+
+ggplot(info_fix, aes(x = condition, y = time_between_fixations, fill=condition)) +
+  geom_boxplot() +
+  labs(title = "Time Between Fixations by Condition",
+       x = "Condition",
+       y = "Time Between Fixations") +
+  theme_bw()+
+  scale_fill_manual(values = my_palette)
+
+```
+
+
+
 
