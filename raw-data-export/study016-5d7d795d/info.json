@@ -1,0 +1,38 @@
+{
+    "android_device_id": "74669860b389edec",
+    "android_device_model": "OnePlus8T_EEA",
+    "android_device_name": "OnePlus 8T",
+    "app_version": "1.4.30-prod",
+    "calib_version": 1,
+    "data_format_version": "1.4",
+    "duration": 29129000000,
+    "gaze_offset": [
+        108.82556,
+        36.114258
+    ],
+    "glasses_serial_number": "4tdvb",
+    "os_version": "11",
+    "pipeline_version": "1.10.0",
+    "recording_id": "5d7d795d-77c8-40a6-89c8-1a530b4b2e18",
+    "scene_camera_serial_number": "n53b6",
+    "start_time": 1702038142876000000,
+    "template_data": {
+        "data": {
+            "84311690-9345-437b-9a4f-a12f0e528de2": [
+                "L1"
+            ],
+            "b02412f9-e24a-47cf-853e-e4908162c7a0": [
+                "03"
+            ],
+            "d398f2d7-8eaf-4036-9dfc-4d1afd064780": [
+                "1"
+            ]
+        },
+        "id": "8b75329e-b3ab-4b36-934a-bd7078eff30a",
+        "recording_name": "Study",
+        "version": "2023-12-06T08:37:31.993000Z"
+    },
+    "wearer_id": "f72e9cf0-0224-4d91-aa90-7b913ec903bb",
+    "wearer_name": "Glasses study ",
+    "workspace_id": "11d1f114-b5b7-4bd1-8668-d89e99cedb1b"
+}

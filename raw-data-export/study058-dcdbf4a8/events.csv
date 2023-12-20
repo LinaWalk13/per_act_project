@@ -1,0 +1,5 @@
+recording id,timestamp [ns],name,type
+dcdbf4a8-adb3-4ec8-90d6-f5f15666582c,1702294104045000000,recording.begin,recording
+dcdbf4a8-adb3-4ec8-90d6-f5f15666582c,1702294116492391000,task.begin,cloud
+dcdbf4a8-adb3-4ec8-90d6-f5f15666582c,1702294143986057000,task.end,cloud
+dcdbf4a8-adb3-4ec8-90d6-f5f15666582c,1702294145390000000,recording.end,recording

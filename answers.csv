@@ -1,0 +1,17 @@
+timestemp,id,age,gender,native_language,english_confidence,university_enrolled,degree,sleep_satisfaction,fun,nmistakes_L1,nmistakes_L2,nmistakes_H1,nmistakes_H2,nwords_L2,category_L2,nwords_H2,category_H2
+08.12.2023 10:38:36,09,21,Female,Danish,5,Yes,Cognitive Science,4,Yes,0,0,0,1,14,animals,13,food
+08.12.2023 12:12:11,01,22,Female,Danish,6,Yes,Cognitive Science,5,Yes,0,0,0,0,15,food,9,animals
+08.12.2023 12:24:30,15,20,Female,german,4,Yes,Cognitive Science,3,Yes,0,0,0,0,11,food,9,animals
+08.12.2023 12:48:21,02,24,Female,Faroese,6,Yes,multimediedesign,3,Yes,0,0,0,0,11,food,12,animals
+08.12.2023 13:00:48,20,20,Female,Estonian,6,Yes,Cognitive Science,4,Yes,0,0,1,0,8,food,10,animals
+08.12.2023 13:13:12,18,20,Female,german,5,Yes,cognitive science,4,Yes,0,0,0,1,12,food,11,animals
+08.12.2023 13:28:50,03,22,Male,Danish,6,Yes,CogSci,3,Yes,0,0,0,0,11,animals,12,food
+08.12.2023 13:57:53,16,23,Female,danish,5,Yes,Cognitive Science,5,Yes,0,0,0,0,9,animals,14,food
+08.12.2023 14:07:33,06,19,Male,Tamil,7,Yes,Cognitive Science,7,Yes,0,0,0,0,14,animals,8,food
+08.12.2023 14:28:24,05,22,Female,Danish,6,Yes,Cognitive Science,4,Yes,0,0,0,0,4,food,8,animals
+11.12.2023 10:19:09,13,22,Female,danish,5,Yes,cognitive science,6,Yes,0,0,0,0,12,food,8,animals
+11.12.2023 10:24:29,07,23,Female,danish,6,Yes,cognitive science,6,Yes,0,0,0,0,10,food,15,animals
+11.12.2023 10:55:56,10,20,Female,Danish/German,6,Yes,Cognitive Science,6,Yes,0,0,0,0,9,food,10,animals
+11.12.2023 11:06:32,08,22,Female,Bulgarian,6,Yes,Cognitive Science,5,Yes,0,0,0,0,10,animals,12,food
+11.12.2023 12:33:36,12,24,Male,Danish,6,Yes,Cognitive Science,6,Yes,0,0,0,0,9,food,6,animals
+11.12.2023 12:57:21,11,22,Male,danish,6,Yes,Cognitive Science,4,Yes,0,0,0,0,8,animals,8,food
