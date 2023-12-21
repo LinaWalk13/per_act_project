@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r install_packages}
 
-pacman::p_load(devtools, tidyverse, dplyr, ggplot2, jsonlite, tidyr, car, rstatix, lme4, fitdistrplus, extraDistr, brms, stats, ggpubr, rstatix, boot)
+pacman::p_load(devtools, tidyverse, dplyr, ggplot2, jsonlite, tidyr, car, rstatix, lme4, fitdistrplus, extraDistr, brms, stats, ggpubr, rstatix, boot, dunn.test)
 library(pupilr)
 library(eyer)
 
@@ -219,28 +219,6 @@ info_fix %>%
   facet_wrap(~condition, scale = "fixed")
 
 
-# number of fixations in one recording 
-info_fix %>%
-  ggplot(aes(x = recording.id, fill = condition)) +
-  geom_bar(position = "dodge") +
-  labs(title = "Fixation Number in Each Recording for Different Conditions",
-       x = "Recording ID",
-       y = "Fixation Number")+ 
-  scale_fill_manual(values=my_palette)+
-      theme_bw()
-
-
-
-# boxplot task duration 
-info_fix %>%
-  ggplot(aes(x = condition, y = task.duration , fill = condition)) +
-  geom_boxplot() +
-  labs(title = "Task Duration in each condition",
-       x = "Condition",
-       y = "Task duration")+ 
-      scale_fill_manual(values=my_palette)+
-      theme_bw()
-
 
 # overall fixation frequency
 info_fix %>%
@@ -292,8 +270,6 @@ info_fix %>%
 
 
 ```{r classes_df}
-# count ambient and focal fixations in each recording 
-
 # Create the fix_classes data frame
 fix_classes <- info_fix %>%
   group_by(recording.id) %>%
@@ -306,26 +282,44 @@ fix_classes <- info_fix %>%
     id = first(id)
   )
 
-
-# Calculate the proportion of ambient and focal fixations to fix_count for each condition
+# Calculate the proportion of focla to ambient fixations
 fix_classes <- fix_classes %>%
-  gather(fixation_type, count, ambient:focal) %>%
-  group_by(condition) %>%
-  mutate(proportion = count / fix_count)
+  mutate(prop_focal_to_ambient =  focal / ambient)
 
-# Plotting
-ggplot(fix_classes, aes(x = condition, y = proportion, fill = fixation_type)) +
-  geom_bar(stat = "identity") +
-  labs(title = "Proportion of Ambient and Focal Fixations to Total Fixation Count by Condition",
-       x = "Condition",
-       y = "Proportion",
-       fill = "Fixation Type") +
-  scale_fill_manual(values = c("ambient" = "lightseagreen", "focal" = "lightskyblue")) +
-  theme_minimal()
 ```
-```{r}
-fix_classes <- fix_classes[, c("recording.id", "proportion")]
-# info_fix <- merge(info_fix, fix_classes, by = "recording.id") # running this doubles the rows in the data
+
+```{r merge_classes_and_plot}
+fix_classes <- fix_classes[, c("recording.id", "prop_focal_to_ambient")]
+id_rec_id <- info_fix[, c("id", "recording.id", "condition")]
+fix_classes <- left_join(fix_classes, id_rec_id, by= "recording.id" )
+fix_classes <- fix_classes[!duplicated(fix_classes, fromLast = TRUE), ]
+
+
+ggplot(fix_classes, aes(x = condition, y = prop_focal_to_ambient, fill = condition)) +
+  geom_boxplot() +
+  labs(x = "ID", y = "Proportion (prop_focal_to_ambient)", title = "Proportion of Focal to Ambient Fixations Across Conditions") +
+  theme_minimal()+
+  scale_fill_manual(values = my_palette)
+
+fix_classes %>%
+  ggplot(aes(x = prop_focal_to_ambient, fill = condition)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Proportion of Focal to Ambient Fixations Across Conditions",
+       x = "Proportion",
+       y = "Density") +
+  scale_fill_manual(values = my_palette) +
+  theme_bw() +
+  facet_wrap(~condition, scale = "fixed")
+
+fix_classes %>%
+  ggplot(aes(x = log(prop_focal_to_ambient), fill = condition)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Log (Proportion of Focal to Ambient Fixations Across Conditions)",
+       x = "Proportion",
+       y = "Density") +
+  scale_fill_manual(values = my_palette) +
+  theme_bw() +
+  facet_wrap(~condition, scale = "fixed")
 ```
 
 
@@ -350,9 +344,7 @@ ggplot(info_fix, aes(x = condition, y = time_between_fixations, fill=condition))
 ```
 ## checking assumptions needed for anova 
 
-```{r filter_data_for_anova}
-
-
+```{r filter_data}
 lower_threshold <- 50 # change based on literature 
 upper_threshold <- 2000 # change based on litertaure 
 
@@ -362,18 +354,9 @@ info_fix_filtered <- info_fix[info_fix$duration >= lower_threshold & info_fix$du
 ```
 
 
-```{r log_transform}
+```{r log_transform_plot}
 # Assuming 'info_fix' is your data frame
 info_fix_filtered$log_duration <- log(info_fix_filtered$duration)
-
-info_fix_filtered %>%
-  ggplot(aes(x = log_duration)) +
-  geom_density(alpha = 0.5, fill = "#66c2a5") +
-  labs(title = "Log-transformed Fixation Duration Distribution",
-       x = "log(Fixation Duration)",
-       y = "Density") +
-  theme_bw() 
-
 #fixation duration density wrapped by condiotn 
 info_fix_filtered %>%
   ggplot(aes(x = log_duration, fill = condition)) +
@@ -389,37 +372,76 @@ info_fix_filtered %>%
 
 ```
 
-```{r}
+```{r norm_test}
 qqnorm(info_fix_filtered$log_duration, main = "Normal Q-Q plot")
 ggqqplot(info_fix_filtered, "log_duration", facet.by = "condition")
 shapiro_test(info_fix_filtered$log_duration)
 # does not look good :((((
 
 ```
-
-
-
-
-
+## Modelling fixation duration 
 
 ```{r glm_model}
+# note this is done with all fixation data, possibly use the filtered df instead
 
 # with logit link 
 log_model <- glm(duration ~ condition + (1 | id), data = info_fix, family = poisson(link = "log"))
-summary(log_model)
+summary(log_model)  
 
 # or this without log ? 
 mixed_model <- lmer(duration ~ condition + (1 | id), data = info_fix)
-summary(mixed_model) 
+summary(mixed_model)  # assumes normality otherwise we could use log(duration)
 
+gamma_model <- glm(duration ~ condition + (1 | id), data = info_fix, family = Gamma(link = "log"))
+summary(gamma_model)
 
-log_model_filtered <- glm(duration ~ condition + (1 | id), data = info_fix_filtered, family = poisson(link = "log"))
-summary(log_model_filtered)
+gamma_model_log <- glm(log_duration ~ condition + (1 | id), data = info_fix, family = Gamma(link = "log"))
+summary(gamma_model_log)
 
-# or this? 
-mixed_model_filtered <- lmer(duration ~ condition + (1 | id), data = info_fix_filtered)
-summary(mixed_model_filtered) 
 
 ```
+
+```{r AIC}
+AIC(log_model, mixed_model, gamma_model, gamma_model_log)
+```
+
+
+```{r plot_model}
+# Plot model 
+plot(gamma_model_log)
+
+```
+
+
+## Anova on proportion of focal to ambient fixations 
+
+```{r test_proportion}
+shapiro.test(log(fix_classes$prop_focal_to_ambient))
+# wuhu normally distributed
+
+anova_result <- aov(log(prop_focal_to_ambient) ~ condition, data = fix_classes)
+summary(anova_result)
+
+# post-hoc pair-wise group comparison
+## here we should probably read up on other options, not sure TurkeyHSD is the best 
+TukeyHSD(anova_result)
+
+
+leveneTest(prop_focal_to_ambient ~ condition, data = fix_classes)
+# unequal variance, so we probably need to do something else
+
+
+
+
+## apparently this is suitable if unqueal variances are present
+kruskal_result <- kruskal.test(prop_focal_to_ambient ~ condition, data = fix_classes)
+print(kruskal_result)# Kruskal-Wallis test
+
+#  post hoc pairwise comparisons (adjusting for multiple comparisons)
+posthoc_dunn <- dunn.test(fix_classes$prop_focal_to_ambient, g = fix_classes$condition, method = "bonferroni")
+print(posthoc_dunn)
+
+```
+
 
 
