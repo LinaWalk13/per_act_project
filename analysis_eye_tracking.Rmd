@@ -11,9 +11,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r install_packages}
 
-pacman::p_load(devtools, tidyverse, dplyr, ggplot2, jsonlite, tidyr)
+pacman::p_load(devtools, tidyverse, dplyr, ggplot2, jsonlite, tidyr, car, rstatix, lme4, fitdistrplus, extraDistr, brms, stats, ggpubr, rstatix, boot)
 library(pupilr)
 library(eyer)
+
 ```
 
 ```{r read_info_data}
@@ -75,7 +76,6 @@ fixations <- rename(fixations, start = start.timestamp..ns., end = end.timestamp
 fixations$start <- fixations$start / 1e6
 fixations$end <- fixations$end / 1e6
 
-sum(is.na(fixations$duration))
 
 ```
 
@@ -83,25 +83,25 @@ sum(is.na(fixations$duration))
 
 ```{r read_gaze, message=F}
 # create list of paths
-gaze <- lapply(subfolders, function(subfolder) {
-  # file path within each subfolder
-  gaze_path <- file.path(subfolder, "gaze.csv")
-
-  # Check if the file exists
-  if (file.exists(gaze_path)) {
-    # if the file exists, return the file path
-    return(gaze_path)
-  } else {
-    # if the file does not exist, return NULL
-    return(NULL)
-  }
-})
-
-# Remove NULL values from the list 
-gaze <- Filter(Negate(is.null), gaze)
-
-# Read and combine CSV files 
-gaze <- bind_rows(lapply(gaze, read.csv))
+# gaze <- lapply(subfolders, function(subfolder) {
+#   # file path within each subfolder
+#   gaze_path <- file.path(subfolder, "gaze.csv")
+# 
+#   # Check if the file exists
+#   if (file.exists(gaze_path)) {
+#     # if the file exists, return the file path
+#     return(gaze_path)
+#   } else {
+#     # if the file does not exist, return NULL
+#     return(NULL)
+#   }
+# })
+# 
+# # Remove NULL values from the list 
+# gaze <- Filter(Negate(is.null), gaze)
+# 
+# # Read and combine CSV files 
+# gaze <- bind_rows(lapply(gaze, read.csv))
 
 # if we use the data maybe rename xolumsn and so on
 
@@ -158,7 +158,6 @@ events <- events %>%
 
 
 ```{r bind_and_filter}
-
 # bind events and fixation data
 fixations <- left_join(events, fixations, by = "recording.id")
 
@@ -308,8 +307,6 @@ fix_classes <- info_fix %>%
   )
 
 
-
-
 # Calculate the proportion of ambient and focal fixations to fix_count for each condition
 fix_classes <- fix_classes %>%
   gather(fixation_type, count, ambient:focal) %>%
@@ -326,7 +323,14 @@ ggplot(fix_classes, aes(x = condition, y = proportion, fill = fixation_type)) +
   scale_fill_manual(values = c("ambient" = "lightseagreen", "focal" = "lightskyblue")) +
   theme_minimal()
 ```
+```{r}
+fix_classes <- fix_classes[, c("recording.id", "proportion")]
+# info_fix <- merge(info_fix, fix_classes, by = "recording.id") # running this doubles the rows in the data
+```
+
+
 ```{r time_between_fixations}
+# calculate the time between fixation = saccades ???
 
 fixations <- fixations %>%
   group_by(recording.id) %>%
@@ -344,7 +348,78 @@ ggplot(info_fix, aes(x = condition, y = time_between_fixations, fill=condition))
   scale_fill_manual(values = my_palette)
 
 ```
+## checking assumptions needed for anova 
+
+```{r filter_data_for_anova}
 
 
+lower_threshold <- 50 # change based on literature 
+upper_threshold <- 2000 # change based on litertaure 
+
+
+# Remove outliers
+info_fix_filtered <- info_fix[info_fix$duration >= lower_threshold & info_fix$duration <= upper_threshold, ]
+```
+
+
+```{r log_transform}
+# Assuming 'info_fix' is your data frame
+info_fix_filtered$log_duration <- log(info_fix_filtered$duration)
+
+info_fix_filtered %>%
+  ggplot(aes(x = log_duration)) +
+  geom_density(alpha = 0.5, fill = "#66c2a5") +
+  labs(title = "Log-transformed Fixation Duration Distribution",
+       x = "log(Fixation Duration)",
+       y = "Density") +
+  theme_bw() 
+
+#fixation duration density wrapped by condiotn 
+info_fix_filtered %>%
+  ggplot(aes(x = log_duration, fill = condition)) +
+  geom_density(alpha = 0.5) +
+  labs(title = " Log-transformed Fixation Duration Distribution",
+       x = "Log (Fixation Duration)",
+       y = "Density") +
+  scale_fill_manual(values = my_palette) +
+  theme_bw() +
+  facet_wrap(~condition, scale = "fixed")
+
+
+
+```
+
+```{r}
+qqnorm(info_fix_filtered$log_duration, main = "Normal Q-Q plot")
+ggqqplot(info_fix_filtered, "log_duration", facet.by = "condition")
+shapiro_test(info_fix_filtered$log_duration)
+# does not look good :((((
+
+```
+
+
+
+
+
+
+```{r glm_model}
+
+# with logit link 
+log_model <- glm(duration ~ condition + (1 | id), data = info_fix, family = poisson(link = "log"))
+summary(log_model)
+
+# or this without log ? 
+mixed_model <- lmer(duration ~ condition + (1 | id), data = info_fix)
+summary(mixed_model) 
+
+
+log_model_filtered <- glm(duration ~ condition + (1 | id), data = info_fix_filtered, family = poisson(link = "log"))
+summary(log_model_filtered)
+
+# or this? 
+mixed_model_filtered <- lmer(duration ~ condition + (1 | id), data = info_fix_filtered)
+summary(mixed_model_filtered) 
+
+```
 
 
