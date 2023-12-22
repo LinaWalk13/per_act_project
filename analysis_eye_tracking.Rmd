@@ -183,6 +183,14 @@ info_fix <- info_fix %>%
     fixation.freq = n_distinct(fixation.id) / task.duration)
 ```
 
+```{r filter_data}
+lower_threshold <- 50 # change based on literature 
+upper_threshold <- 2500 # change based on litertaure 
+
+
+# Remove outliers
+info_fix_filtered <- info_fix[info_fix$duration >= lower_threshold & info_fix$duration <= upper_threshold, ]
+```
 
 ```{r plot_for_fun}
 
@@ -271,7 +279,7 @@ info_fix %>%
 
 ```{r classes_df}
 # Create the fix_classes data frame
-fix_classes <- info_fix %>%
+fix_classes <- info_fix_filtered %>%
   group_by(recording.id) %>%
   summarise(
     ambient = sum(duration <= 300),
@@ -289,8 +297,8 @@ fix_classes <- fix_classes %>%
 ```
 
 ```{r merge_classes_and_plot}
-fix_classes <- fix_classes[, c("recording.id", "prop_focal_to_ambient")]
-id_rec_id <- info_fix[, c("id", "recording.id", "condition")]
+fix_classes <- fix_classes[, c("recording.id", "prop_focal_to_ambient", "fix_count", "focal", "ambient")]
+id_rec_id <- info_fix_filtered[, c("id", "recording.id", "condition")]
 fix_classes <- left_join(fix_classes, id_rec_id, by= "recording.id" )
 fix_classes <- fix_classes[!duplicated(fix_classes, fromLast = TRUE), ]
 
@@ -343,17 +351,6 @@ ggplot(info_fix, aes(x = condition, y = time_between_fixations, fill=condition))
 
 ```
 ## checking assumptions needed for anova 
-
-```{r filter_data}
-lower_threshold <- 50 # change based on literature 
-upper_threshold <- 2000 # change based on litertaure 
-
-
-# Remove outliers
-info_fix_filtered <- info_fix[info_fix$duration >= lower_threshold & info_fix$duration <= upper_threshold, ]
-```
-
-
 ```{r log_transform_plot}
 
 info_fix_filtered$log_duration <- log(info_fix_filtered$duration)
@@ -386,14 +383,14 @@ shapiro_test(info_fix_filtered$log_duration)
 # note this is done with all fixation data, possibly use the filtered df instead
 
 # with logit link 
-log_model <- glm(duration ~ condition + (1 | id), data = info_fix, family = poisson(link = "log"))
+log_model <- glm(duration ~ condition + (1 | id), data = info_fix_filtered, family = poisson(link = "log"))
 summary(log_model)  
 
 
-gamma_model <- glm(duration ~ condition + (1 | id), data = info_fix, family = Gamma(link = "log"))
+gamma_model <- glm(duration ~ condition + (1 | id), data = info_fix_filtered, family = Gamma(link = "log"))
 summary(gamma_model)
 
-gamma_model_log <- glm(log(duration) ~ condition + (1 | id), data = info_fix, family = Gamma(link = "log"))
+gamma_model_log <- glm(log(duration) ~ condition + (1 | id), data = info_fix_filtered, family = Gamma(link = "log"))
 summary(gamma_model_log)
 
 
@@ -422,21 +419,21 @@ plot(gamma_model_log)
 
 ## models for fixation frequency 
 ```{r models_freq}
-freq_gamma <- glm(fixation.freq ~ condition, family = Gamma(link = "log"), data = info_fix)
+freq_gamma <- glm(fixation.freq ~ condition, family = Gamma(link = "log"), data = info_fix_filtered)
 summary(freq_gamma)
 
-freq_log <- glm(log(fixation.freq) ~ condition, data = info_fix)
+freq_log <- glm(log(fixation.freq) ~ condition, data = info_fix_filtered)
 summary(freq_log)
 
-freq_inverse <- glm(fixation.freq ~ condition, inverse.gaussian, data = info_fix)
+freq_inverse <- glm(fixation.freq ~ condition, inverse.gaussian, data = info_fix_filtered)
 summary(freq_inverse)
 
 
 AIC(freq_gamma, freq_log, freq_inverse)
 ```
-The gamma models seems to fit best
+The log models seems to fit best
 ```{r plot_freq_model}
-plot(freq_gamma)
+plot(freq_log)
 ```
 Not sure if this looks alright? 
 
@@ -444,8 +441,6 @@ Not sure if this looks alright?
 
 The gamma model was chosen based on AIC criteria and suggests the following based on the coefficients: 
 
-  - Higher fixation frequency for condition H2 (0.1231, p < 2e-16).
-  - Lower fixation frequency for conditions L1 (-0.2179, p < 2e-16) and L2 (-0.0700, p < 2e-16) compared to the reference.
 
 # model for proportion 
 
@@ -473,64 +468,56 @@ is this alright?
 ## proportions 
 
 This Generalized Linear Model (GLM) was fitted to the proportion of focal to ambient fixations using a Gamma distribution and a log link function. The model suggest: 
-
-  - No significant difference for conditions H2 and L2 compared to the reference (p > 0.05).
-  - A significant increase in the proportion for condition L1 (0.7516, p = 0.000321).
   
 
 ```{r plot_for_each }
 
 #fixation duration
-info_fix %>%
-  ggplot(aes(x = log(duration), fill = condition)) +
+info_fix_filtered %>%
+  ggplot(aes(x = duration, fill = condition)) +
   geom_density(alpha = 0.5) +
-  labs(title = " Log-transformed Fixation Duration Distribution",
-       x = "Log (Fixation Duration)",
+  labs(title = " Fixation Duration Distribution",
+       x = "Fixation Duration",
        y = "Density") +
   scale_fill_manual(values = my_palette) +
   theme_bw() +
   facet_wrap(~condition, scale = "fixed")
 
-
-# proportion 
-fix_classes %>%
-  ggplot(aes(x = prop_focal_to_ambient, fill = condition)) +
-  geom_density(alpha = 0.5) +
-  labs(title = "Proportion of Focal to Ambient Fixations Across Conditions",
-       x = "Proportion",
-       y = "Density") +
-  scale_fill_manual(values = my_palette) +
-  theme_bw() +
-  facet_wrap(~condition, scale = "fixed")
 
 
 # fixation frequency 
-info_fix %>%
-  ggplot(aes(x = fixation.freq, fill = condition)) +
-  geom_density(alpha = 0.5) +
+
+info_fix_filtered %>%
+  ggplot(aes(x = condition, y = fixation.freq, fill = condition)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA) +
   labs(title = "Fixation Frequency Distribution",
-       x = "Fixation Frequency",
-       y = "Density") +
+       x = "Condition",
+       y = "Fixation Frequency") +
   scale_fill_manual(values = my_palette) +
-  theme_bw() +
-  facet_wrap(~condition, scale = "fixed")
-# showing the fixations per second 
+  theme_bw()
 
-### maybe use different plots, for example boxplots and so on
-## espeiaclly the last one is quite ugly 
-
-
+# proportion 
 fix_classes %>%
-  ggplot(aes(x = condition, y = 100, fill = as.factor(prop_focal_to_ambient > 1))) +
-  geom_bar(stat = "identity") +
-  scale_fill_manual(values = c("darkmagenta", "cornflowerblue"), name = "Proportion") +
-  labs(title = "Bar Plot of Proportion of Focal to Ambient Fixations Across Conditions",
+  mutate(ambient_prop = ambient / fix_count * 100,
+         focal_prop = focal / fix_count * 100) %>%
+  ggplot(aes(x = condition)) +
+  geom_bar(aes(y = 100, fill = as.factor(prop_focal_to_ambient > 1)), position = "fill", stat = "identity") +
+  scale_fill_manual(values = c("darkmagenta", "cornflowerblue"),
+                    name = "Proportion",
+                    labels = c("Ambient", "Focal")) +
+  labs(title = "Proportion of Focal to Ambient Fixations Across Conditions",
        x = "Condition",
        y = "Percentage",
        fill = "Proportion") +
   theme_bw() +
-    theme(axis.text.y = element_blank())+
+  theme(axis.text.y = element_blank()) +
   scale_y_continuous(labels = scales::percent_format(scale = 1))
+
+
+
+
+
+
 ## not sure this is correct? but Like the idea of the plot
                      
 
