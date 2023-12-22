@@ -355,7 +355,7 @@ info_fix_filtered <- info_fix[info_fix$duration >= lower_threshold & info_fix$du
 
 
 ```{r log_transform_plot}
-# Assuming 'info_fix' is your data frame
+
 info_fix_filtered$log_duration <- log(info_fix_filtered$duration)
 #fixation duration density wrapped by condiotn 
 info_fix_filtered %>%
@@ -395,7 +395,7 @@ summary(mixed_model)  # assumes normality otherwise we could use log(duration)
 gamma_model <- glm(duration ~ condition + (1 | id), data = info_fix, family = Gamma(link = "log"))
 summary(gamma_model)
 
-gamma_model_log <- glm(log_duration ~ condition + (1 | id), data = info_fix, family = Gamma(link = "log"))
+gamma_model_log <- glm(log(duration) ~ condition + (1 | id), data = info_fix, family = Gamma(link = "log"))
 summary(gamma_model_log)
 
 
@@ -419,21 +419,19 @@ plot(gamma_model_log)
 shapiro.test(log(fix_classes$prop_focal_to_ambient))
 # wuhu normally distributed
 
-anova_result <- aov(log(prop_focal_to_ambient) ~ condition, data = fix_classes)
-summary(anova_result)
+#anova_result <- aov(log(prop_focal_to_ambient) ~ condition, data = fix_classes)
+#summary(anova_result)
 
 # post-hoc pair-wise group comparison
 ## here we should probably read up on other options, not sure TurkeyHSD is the best 
-TukeyHSD(anova_result)
+#(anova_result)
 
 
 leveneTest(prop_focal_to_ambient ~ condition, data = fix_classes)
-# unequal variance, so we probably need to do something else
+# unequal variance, so we probably need to do something else and the anova above is useless? 
 
 
-
-
-## apparently this is suitable if unqueal variances are present
+## apparently this is suitable if unequal variances are present
 kruskal_result <- kruskal.test(prop_focal_to_ambient ~ condition, data = fix_classes)
 print(kruskal_result)# Kruskal-Wallis test
 
@@ -443,5 +441,139 @@ print(posthoc_dunn)
 
 ```
 
+
+## Analysis of fixation frequency 
+
+```{r freq_norm_test}
+shapiro_test(info_fix$fixation.freq)
+hist(info_fix$fixation.freq)
+## tried every transformation I ofund but nothing made it normal 
+```
+
+```{r var_test}
+leveneTest(fixation.freq ~ condition, data = info_fix)
+```
+```{r}
+## this test is chosen as variances are unequal and we have four groups
+## maybe there are other options of tests, I didn't read up on methods 1 here :O
+kruskal_result_freq <- kruskal.test(fixation.freq ~ condition, data = info_fix)
+print(kruskal_result_freq)# Kruskal-Wallis test
+
+#  post hoc pairwise comparisons again
+posthoc_dunn_freq <- dunn.test(info_fix$fixation.freq, g = info_fix$condition, method = "bonferroni")
+print(posthoc_dunn_freq)
+```
+
+
+## summary of all tested variables 
+
+
+### Fixation Duration:
+
+ **Poisson Regression with Log Link:**
+   - glm model with a log link function.
+   - Identified that the gamma model with log-transformed duration performed the best based on AIC comapred to otther models
+   - Coefficients showed significant effects of conditions H2, L1, and L2 compared to the reference condition H1.
+    - Condition H2: Showed a decrease in log-transformed fixation duration compared to the reference condition H1.
+    - Condition L1: Indicated an increase in log-transformed fixation duration.
+    - Condition L2: Also showed an increase in log-transformed fixation duration, though to a lesser extent.
+
+### Proportion of Long to Short Fixation Duration:
+
+ **ANOVA and Post-hoc Tests:**
+   - ANOVA indicated a significant effect of the condition on the log-transformed proportion of focal to ambient fixations.
+   - Post-hoc Tukey HSD and Dunn tests revealed specific pairwise group differences
+    
+Row Mean |         H1         H2         L1
+---------+---------------------------------
+      H2 |   1.429566
+         |     0.4585
+         |
+      L1 |  -3.072619  -4.576607
+         |    0.0064*    0.0000*
+         |
+      L2 |  -1.545007  -3.023744   1.552863
+         |     0.3670    0.0075*     0.3614
+
+
+### Fixation Frequency:
+
+ **Non-Normality Test and Kruskal-Wallis Test:**
+   - Shapiro-Wilk and Levene's tests indicated non-normality and unequal variances.
+   - Kruskal-Wallis test was employed due to unequal variances, showing a significant effect of condition on fixation frequency 
+
+Row Mean |         H1         H2         L1
+---------+---------------------------------
+      H2 |  -15.96033
+         |    0.0000*
+         |
+      L1 |   19.72757   35.97493
+         |    0.0000*    0.0000*
+         |
+      L2 |   8.066703   24.11602  -11.62566
+         |    0.0000*    0.0000*    0.0000*
+
+
+```{r plot_for_each }
+
+#fixation duration
+info_fix %>%
+  ggplot(aes(x = log(duration), fill = condition)) +
+  geom_density(alpha = 0.5) +
+  labs(title = " Log-transformed Fixation Duration Distribution",
+       x = "Log (Fixation Duration)",
+       y = "Density") +
+  scale_fill_manual(values = my_palette) +
+  theme_bw() +
+  facet_wrap(~condition, scale = "fixed")
+
+
+# proportion 
+fix_classes %>%
+  ggplot(aes(x = prop_focal_to_ambient, fill = condition)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Proportion of Focal to Ambient Fixations Across Conditions",
+       x = "Proportion",
+       y = "Density") +
+  scale_fill_manual(values = my_palette) +
+  theme_bw() +
+  facet_wrap(~condition, scale = "fixed")
+
+
+# fixation frequency 
+info_fix %>%
+  ggplot(aes(x = fixation.freq, fill = condition)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Fixation Frequency Distribution",
+       x = "Fixation Frequency",
+       y = "Density") +
+  scale_fill_manual(values = my_palette) +
+  theme_bw() +
+  facet_wrap(~condition, scale = "fixed")
+# showing the fixations per second 
+
+### maybe use different plots, for example boxplots and so on
+## espeiaclly the last one is quite ugly 
+
+
+fix_classes %>%
+  ggplot(aes(x = condition, y = 100, fill = as.factor(prop_focal_to_ambient > 1))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("darkmagenta", "cornflowerblue"), name = "Proportion") +
+  labs(title = "Bar Plot of Proportion of Focal to Ambient Fixations Across Conditions",
+       x = "Condition",
+       y = "Percentage",
+       fill = "Proportion") +
+  theme_bw() +
+    theme(axis.text.y = element_blank())+
+  scale_y_continuous(labels = scales::percent_format(scale = 1))
+## not sure this is correct? but Like the idea of the plot
+                     
+
+
+
+
+
+```
 
 
