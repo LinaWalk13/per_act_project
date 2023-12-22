@@ -379,6 +379,7 @@ shapiro_test(info_fix_filtered$log_duration)
 # does not look good :((((
 
 ```
+
 ## Modelling fixation duration 
 
 ```{r glm_model}
@@ -388,9 +389,6 @@ shapiro_test(info_fix_filtered$log_duration)
 log_model <- glm(duration ~ condition + (1 | id), data = info_fix, family = poisson(link = "log"))
 summary(log_model)  
 
-# or this without log ? 
-mixed_model <- lmer(duration ~ condition + (1 | id), data = info_fix)
-summary(mixed_model)  # assumes normality otherwise we could use log(duration)
 
 gamma_model <- glm(duration ~ condition + (1 | id), data = info_fix, family = Gamma(link = "log"))
 summary(gamma_model)
@@ -402,7 +400,7 @@ summary(gamma_model_log)
 ```
 
 ```{r AIC}
-AIC(log_model, mixed_model, gamma_model, gamma_model_log)
+AIC(log_model, gamma_model, gamma_model_log)
 ```
 
 
@@ -411,62 +409,6 @@ AIC(log_model, mixed_model, gamma_model, gamma_model_log)
 plot(gamma_model_log)
 
 ```
-
-
-## Anova on proportion of focal to ambient fixations 
-
-```{r test_proportion}
-shapiro.test(log(fix_classes$prop_focal_to_ambient))
-# wuhu normally distributed
-
-#anova_result <- aov(log(prop_focal_to_ambient) ~ condition, data = fix_classes)
-#summary(anova_result)
-
-# post-hoc pair-wise group comparison
-## here we should probably read up on other options, not sure TurkeyHSD is the best 
-#(anova_result)
-
-
-leveneTest(prop_focal_to_ambient ~ condition, data = fix_classes)
-# unequal variance, so we probably need to do something else and the anova above is useless? 
-
-
-## apparently this is suitable if unequal variances are present
-kruskal_result <- kruskal.test(prop_focal_to_ambient ~ condition, data = fix_classes)
-print(kruskal_result)# Kruskal-Wallis test
-
-#  post hoc pairwise comparisons (adjusting for multiple comparisons)
-posthoc_dunn <- dunn.test(fix_classes$prop_focal_to_ambient, g = fix_classes$condition, method = "bonferroni")
-print(posthoc_dunn)
-
-```
-
-
-## Analysis of fixation frequency 
-
-```{r freq_norm_test}
-shapiro_test(info_fix$fixation.freq)
-hist(info_fix$fixation.freq)
-## tried every transformation I ofund but nothing made it normal 
-```
-
-```{r var_test}
-leveneTest(fixation.freq ~ condition, data = info_fix)
-```
-```{r}
-## this test is chosen as variances are unequal and we have four groups
-## maybe there are other options of tests, I didn't read up on methods 1 here :O
-kruskal_result_freq <- kruskal.test(fixation.freq ~ condition, data = info_fix)
-print(kruskal_result_freq)# Kruskal-Wallis test
-
-#  post hoc pairwise comparisons again
-posthoc_dunn_freq <- dunn.test(info_fix$fixation.freq, g = info_fix$condition, method = "bonferroni")
-print(posthoc_dunn_freq)
-```
-
-
-## summary of all tested variables 
-
 
 ### Fixation Duration:
 
@@ -478,41 +420,63 @@ print(posthoc_dunn_freq)
     - Condition L1: Indicated an increase in log-transformed fixation duration.
     - Condition L2: Also showed an increase in log-transformed fixation duration, though to a lesser extent.
 
-### Proportion of Long to Short Fixation Duration:
+## models for fixation frequency 
+```{r models_freq}
+freq_gamma <- glm(fixation.freq ~ condition, family = Gamma(link = "log"), data = info_fix)
+summary(freq_gamma)
 
- **ANOVA and Post-hoc Tests:**
-   - ANOVA indicated a significant effect of the condition on the log-transformed proportion of focal to ambient fixations.
-   - Post-hoc Tukey HSD and Dunn tests revealed specific pairwise group differences
-    
-Row Mean |         H1         H2         L1
----------+---------------------------------
-      H2 |   1.429566
-         |     0.4585
-         |
-      L1 |  -3.072619  -4.576607
-         |    0.0064*    0.0000*
-         |
-      L2 |  -1.545007  -3.023744   1.552863
-         |     0.3670    0.0075*     0.3614
+freq_log <- glm(log(fixation.freq) ~ condition, data = info_fix)
+summary(freq_log)
+
+freq_inverse <- glm(fixation.freq ~ condition, inverse.gaussian, data = info_fix)
+summary(freq_inverse)
 
 
-### Fixation Frequency:
+AIC(freq_gamma, freq_log, freq_inverse)
+```
+The gamma models seems to fit best
+```{r plot_freq_model}
+plot(freq_gamma)
+```
+Not sure if this looks alright? 
 
- **Non-Normality Test and Kruskal-Wallis Test:**
-   - Shapiro-Wilk and Levene's tests indicated non-normality and unequal variances.
-   - Kruskal-Wallis test was employed due to unequal variances, showing a significant effect of condition on fixation frequency 
+### fixation frequency
 
-Row Mean |         H1         H2         L1
----------+---------------------------------
-      H2 |  -15.96033
-         |    0.0000*
-         |
-      L1 |   19.72757   35.97493
-         |    0.0000*    0.0000*
-         |
-      L2 |   8.066703   24.11602  -11.62566
-         |    0.0000*    0.0000*    0.0000*
+The gamma model was chosen based on AIC criteria and suggests the following based on the coefficients: 
 
+  - Higher fixation frequency for condition H2 (0.1231, p < 2e-16).
+  - Lower fixation frequency for conditions L1 (-0.2179, p < 2e-16) and L2 (-0.0700, p < 2e-16) compared to the reference.
+
+# model for proportion 
+
+```{r}
+prop_gamma <- glm(prop_focal_to_ambient ~ condition, family = Gamma(link = "log"), data = fix_classes)
+summary(prop_gamma)
+
+prop_log <- glm(log(prop_focal_to_ambient) ~ condition, data = fix_classes)
+summary(prop_log)
+
+prop_inverse <- glm(prop_focal_to_ambient ~ condition, inverse.gaussian, data = fix_classes)
+summary(prop_inverse)
+```
+
+
+```{r prop_AIC}
+AIC(prop_gamma, prop_log, prop_inverse)
+```
+Once again, the gamma model fits best. 
+```{r plot_prop_model}
+plot(prop_gamma)
+```
+is this alright? 
+
+## proportions 
+
+This Generalized Linear Model (GLM) was fitted to the proportion of focal to ambient fixations using a Gamma distribution and a log link function. The model suggest: 
+
+  - No significant difference for conditions H2 and L2 compared to the reference (p > 0.05).
+  - A significant increase in the proportion for condition L1 (0.7516, p = 0.000321).
+  
 
 ```{r plot_for_each }
 
@@ -574,6 +538,63 @@ fix_classes %>%
 
 
 
+```
+
+
+
+
+
+
+## this is all stupid because we do have repeated measures but was what I thought we could do before I realised it :DDD
+## Proportion of focal to ambient fixations 
+
+```{r test_proportion}
+shapiro.test(log(fix_classes$prop_focal_to_ambient))
+# wuhu normally distributed
+
+#anova_result <- aov(log(prop_focal_to_ambient) ~ condition, data = fix_classes)
+#summary(anova_result)
+
+# post-hoc pair-wise group comparison
+## here we should probably read up on other options, not sure TurkeyHSD is the best 
+#(anova_result)
+
+
+leveneTest(prop_focal_to_ambient ~ condition, data = fix_classes)
+# unequal variance, so we probably need to do something else and the anova above is useless? 
+
+
+## apparently this is suitable if unequal variances are present
+kruskal_result <- kruskal.test(prop_focal_to_ambient ~ condition, data = fix_classes)
+print(kruskal_result)# Kruskal-Wallis test
+
+#  post hoc pairwise comparisons (adjusting for multiple comparisons)
+posthoc_dunn <- dunn.test(fix_classes$prop_focal_to_ambient, g = fix_classes$condition, method = "bonferroni")
+print(posthoc_dunn)
+
+```
+
+
+## Analysis of fixation frequency 
+
+```{r freq_norm_test}
+shapiro_test(info_fix$fixation.freq)
+hist(info_fix$fixation.freq)
+## tried every transformation I found but nothing made it normal 
+```
+
+```{r var_test}
+leveneTest(fixation.freq ~ condition, data = info_fix)
+```
+```{r}
+## this test is chosen as variances are unequal and we have four groups
+## maybe there are other options of tests, I didn't read up on methods 1 here :O
+kruskal_result_freq <- kruskal.test(fixation.freq ~ condition, data = info_fix)
+print(kruskal_result_freq)# Kruskal-Wallis test
+
+#  post hoc pairwise comparisons again
+posthoc_dunn_freq <- dunn.test(info_fix$fixation.freq, g = info_fix$condition, method = "bonferroni")
+print(posthoc_dunn_freq)
 ```
 
 
