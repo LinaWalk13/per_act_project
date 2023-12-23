@@ -530,6 +530,11 @@ fix_classes %>%
 
 
 
+```{r}
+task_model <- glm(task.duration ~ condition, data = info_fix_filtered)
+```
+
+
 
 
 ## this is all stupid because we do have repeated measures but was what I thought we could do before I realised it :DDD
